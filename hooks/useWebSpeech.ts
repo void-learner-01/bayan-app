@@ -59,11 +59,13 @@ export type SupportedLanguage = "ur-PK" | "en-US";
 export interface UseWebSpeechOptions {
   lang?: SupportedLanguage;
   onFinalTranscript?: (text: string) => void;
+  onFinalPart?: (newPart: string) => void;
 }
 
 export function useWebSpeech({
   lang = "ur-PK",
   onFinalTranscript,
+  onFinalPart,
 }: UseWebSpeechOptions = {}) {
   // Subscribe to browser speech recognition support safely across SSR and Client
   const isSupported = useSyncExternalStore(
@@ -81,11 +83,16 @@ export function useWebSpeech({
   const shouldListenRef = useRef<boolean>(false);
   const currentLangRef = useRef<SupportedLanguage>(lang);
   const onFinalCallbackRef = useRef(onFinalTranscript);
+  const onFinalPartRef = useRef(onFinalPart);
 
   // Keep callback and lang ref up to date
   useEffect(() => {
     onFinalCallbackRef.current = onFinalTranscript;
   }, [onFinalTranscript]);
+
+  useEffect(() => {
+    onFinalPartRef.current = onFinalPart;
+  }, [onFinalPart]);
 
   useEffect(() => {
     currentLangRef.current = lang;
@@ -159,8 +166,12 @@ export function useWebSpeech({
         }
 
         if (newFinalPart) {
+          const trimmed = newFinalPart.trim();
+          if (trimmed && onFinalPartRef.current) {
+            onFinalPartRef.current(trimmed);
+          }
           setFinalTranscript((prev) => {
-            const updated = (prev ? prev + " " : "") + newFinalPart.trim();
+            const updated = (prev ? prev + "\n" : "") + trimmed;
             if (onFinalCallbackRef.current) {
               onFinalCallbackRef.current(updated);
             }

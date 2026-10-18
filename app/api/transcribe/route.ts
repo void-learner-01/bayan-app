@@ -13,7 +13,8 @@ Transcribe the speech in this audio chunk into text following these strict rules
    - If code-mixed (Urdu & English spoken together), preserve both languages exactly as spoken.
 2. DO NOT translate anything into another language. Keep each word in its spoken language.
 3. If the audio is silent, unclear, background noise only, or there is no intelligible speech, return an empty string "" without adding anything.
-4. DO NOT add any commentary, notes, timestamps, explanations, or quotes. Output ONLY the raw transcribed text.`;
+4. DO NOT add any commentary, notes, timestamps, explanations, or quotes. Output ONLY the raw transcribed text.
+5. Punctuation: Delimit complete sentences or utterances with proper punctuation (such as Urdu khatma '۔' or question mark '؟' for Urdu, and periods '.' or question marks '?' for English).`;
 
 export async function POST(req: NextRequest) {
   try {
