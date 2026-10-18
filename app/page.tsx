@@ -1,10 +1,18 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useAudioCapture } from "@/hooks/useAudioCapture";
+import { useAudioChunker, ChunkInfo } from "@/hooks/useAudioChunker";
 import { VolumeMeter } from "@/components/VolumeMeter";
 
 export default function Home() {
+  const [lastEmittedChunk, setLastEmittedChunk] = useState<{
+    size: number;
+    mimeType: string;
+    timestamp: number;
+  } | null>(null);
+
+  // F1: Microphone capture & real-time RMS volume analysis
   const {
     isCapturing,
     volume,
@@ -13,7 +21,33 @@ export default function Home() {
     errorMessage,
     startCapture,
     stopCapture,
+    stream,
   } = useAudioCapture(8);
+
+  // F2: Discrete 3.5s cycle chunking & Silence VAD Gate
+  const {
+    chunkStatus,
+    totalCycles,
+    speechChunksCount,
+    discardedChunksCount,
+    lastChunkInfo,
+    activeMimeType,
+  } = useAudioChunker({
+    stream,
+    isCapturing,
+    volume,
+    isSoundDetected,
+    chunkDurationMs: 3500,
+    silenceThreshold: 8,
+    onChunkReady: (_blob: Blob, info: ChunkInfo) => {
+      // Standalone audio chunk ready (F2 -> ready for F3 API dispatch)
+      setLastEmittedChunk({
+        size: info.size,
+        mimeType: info.mimeType,
+        timestamp: info.timestamp,
+      });
+    },
+  });
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col justify-between selection:bg-[#FFE600] selection:text-black">
@@ -61,11 +95,11 @@ export default function Home() {
         {/* Intro Hero */}
         <div className="text-center space-y-2">
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-            Classroom Microphone Monitor
+            Classroom Microphone &amp; Audio Chunker
           </h2>
           <p className="text-zinc-400 text-sm sm:text-base max-w-lg mx-auto">
-            Place your laptop or phone on your desk facing your teacher. Start the
-            mic to verify sound capture before lecture transcription begins.
+            Captures teacher speech in discrete 3.5s standalone audio files.
+            Silence VAD gate automatically drops quiet intervals to save data.
           </p>
         </div>
 
@@ -151,13 +185,110 @@ export default function Home() {
           )}
         </div>
 
-        {/* Live Volume Meter Component */}
+        {/* Live Volume Meter Component (F1) */}
         <div className="w-full max-w-xl mx-auto">
           <VolumeMeter
             volume={volume}
             isCapturing={isCapturing}
             isSoundDetected={isSoundDetected}
           />
+        </div>
+
+        {/* F2: Discrete Audio Chunker & Silence VAD Gate Monitor */}
+        <div className="w-full max-w-xl mx-auto rounded-2xl border-2 border-zinc-800 bg-zinc-950 p-4 md:p-6 shadow-xl space-y-4">
+          <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-extrabold text-[#FFE600]">F2</span>
+              <h3 className="text-sm font-bold text-white tracking-wide">
+                Discrete Chunking &amp; VAD Gate (3.5s)
+              </h3>
+            </div>
+
+            {/* Current Chunker Cycle Badge */}
+            <span
+              className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                !isCapturing
+                  ? "bg-zinc-900 text-zinc-500 border-zinc-800"
+                  : chunkStatus === "speech"
+                  ? "bg-emerald-950/80 text-emerald-300 border-emerald-700/60"
+                  : chunkStatus === "silence_discarded"
+                  ? "bg-zinc-900 text-zinc-400 border-zinc-700"
+                  : "bg-[#FFE600]/15 text-[#FFE600] border-[#FFE600]/30"
+              }`}
+            >
+              {!isCapturing
+                ? "Standby"
+                : chunkStatus === "speech"
+                ? "Voice Chunk Ready"
+                : chunkStatus === "silence_discarded"
+                ? "Silence Discarded"
+                : "Recording 3.5s..."}
+            </span>
+          </div>
+
+          {/* Metrics Grid */}
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-2.5">
+              <p className="text-[11px] text-zinc-400 font-medium">Total Cycles</p>
+              <p className="text-xl font-bold font-mono text-white mt-0.5">
+                {totalCycles}
+              </p>
+            </div>
+
+            <div className="bg-zinc-900/80 border border-emerald-900/40 rounded-xl p-2.5">
+              <p className="text-[11px] text-emerald-400 font-medium">
+                Voice Chunks
+              </p>
+              <p className="text-xl font-bold font-mono text-emerald-400 mt-0.5">
+                {speechChunksCount}
+              </p>
+            </div>
+
+            <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-2.5">
+              <p className="text-[11px] text-zinc-400 font-medium">
+                Silent (Dropped)
+              </p>
+              <p className="text-xl font-bold font-mono text-zinc-400 mt-0.5">
+                {discardedChunksCount}
+              </p>
+            </div>
+          </div>
+
+          {/* Last Chunk Diagnostics */}
+          <div className="bg-black border border-zinc-900 rounded-xl p-3 text-xs space-y-1.5 font-mono">
+            <div className="flex justify-between text-zinc-400">
+              <span>Container Header:</span>
+              <span className="text-zinc-200">
+                {activeMimeType || "auto (audio/webm;codecs=opus)"}
+              </span>
+            </div>
+            <div className="flex justify-between text-zinc-400">
+              <span>Last Chunk Size:</span>
+              <span className="text-zinc-200">
+                {lastChunkInfo
+                  ? `${(lastChunkInfo.size / 1024).toFixed(1)} KB`
+                  : "0 KB"}
+              </span>
+            </div>
+            <div className="flex justify-between text-zinc-400">
+              <span>Last Interval Volume:</span>
+              <span
+                className={
+                  lastChunkInfo && lastChunkInfo.avgVolume >= 8
+                    ? "text-[#FFE600] font-bold"
+                    : "text-zinc-400"
+                }
+              >
+                {lastChunkInfo ? `${lastChunkInfo.avgVolume}% RMS` : "--"}
+              </span>
+            </div>
+            {lastEmittedChunk && (
+              <div className="flex justify-between text-emerald-400 pt-1 border-t border-zinc-900">
+                <span>Last Emitted for Transcription:</span>
+                <span>{(lastEmittedChunk.size / 1024).toFixed(1)} KB (Ready)</span>
+              </div>
+            )}
+          </div>
         </div>
       </main>
 
