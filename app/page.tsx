@@ -369,6 +369,26 @@ export default function Home() {
     prevSentenceCountRef.current = sentences.length;
   }, [sentences.length, isScrollPaused]);
 
+  // F7: Detect manual scroll — if user scrolls up, auto-pause; if at bottom, auto-resume
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const atBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight < 40;
+      if (atBottom) {
+        setIsScrollPaused(false);
+        setUnreadCount(0);
+      } else {
+        setIsScrollPaused(true);
+      }
+    };
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, []);
+
   // Scroll to bottom manually
   const scrollToBottom = useCallback(() => {
     setIsScrollPaused(false);
@@ -827,22 +847,24 @@ export default function Home() {
               </div>
             ) : null}
 
+            {/* F7: Sticky Unread Pill — overlays bottom of scroll area when scroll is paused */}
+            {isScrollPaused && unreadCount > 0 && (
+              <div className="sticky bottom-0 left-0 right-0 flex justify-center pt-2 pb-1 pointer-events-none">
+                <button
+                  type="button"
+                  onClick={scrollToBottom}
+                  className="pointer-events-auto px-4 py-1.5 rounded-full bg-[#FFE600] text-black font-bold text-xs shadow-[0_0_20px_rgba(255,230,0,0.4)] flex items-center gap-2 hover:bg-[#ffe81a] active:scale-95 animate-bounce cursor-pointer transition-transform"
+                >
+                  ↓ {unreadCount} new{" "}
+                  {unreadCount === 1 ? "sentence" : "sentences"} — Tap to jump
+                </button>
+              </div>
+            )}
+
             {/* Scroll bottom anchor */}
             <div ref={captionsEndRef} />
           </div>
 
-          {/* Sticky Unread Pill when Scroll is Paused (F7) */}
-          {isScrollPaused && unreadCount > 0 && (
-            <div className="flex justify-center -mt-2">
-              <button
-                type="button"
-                onClick={scrollToBottom}
-                className="px-4 py-1.5 rounded-full bg-[#FFE600] text-black font-bold text-xs shadow-lg flex items-center gap-2 hover:bg-[#ffe81a] animate-bounce cursor-pointer"
-              >
-                <span>↓ {unreadCount} new {unreadCount === 1 ? "sentence" : "sentences"} received — Click to jump to latest</span>
-              </button>
-            </div>
-          )}
 
           {/* Engine & Diagnostics Footer Bar */}
           <div className="flex items-center justify-between text-[11px] text-zinc-400 font-mono pt-1">
