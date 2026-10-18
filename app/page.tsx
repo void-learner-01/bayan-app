@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo, useCallback, useSyncExternalStore } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback, useSyncExternalStore, startTransition } from "react";
 import { useAudioCapture } from "@/hooks/useAudioCapture";
 import { useAudioChunker, ChunkInfo } from "@/hooks/useAudioChunker";
 import { useWebSpeech, SupportedLanguage } from "@/hooks/useWebSpeech";
@@ -179,9 +179,11 @@ export default function Home() {
     } else {
       // Reconnected: cleanly resume normal Cloud operation if user is capturing with Gemini
       if (isCapturing && useGemini) {
-        setIsFallbackActive(false);
-        setFallbackReason(null);
-        setTranscribeError(null);
+        startTransition(() => {
+          setIsFallbackActive(false);
+          setFallbackReason(null);
+          setTranscribeError(null);
+        });
         stopWebSpeech();
       }
     }
