@@ -108,16 +108,16 @@
 ### F8: Session Management & LocalStorage Persistence
 - **Description:** Frictionless guest-mode session that automatically preserves lecture notes across browser refreshes.
 - **Done when:**
-  - [ ] Student can open the app and start transcribing immediately with zero login or signup requirements.
-  - [ ] Current lecture transcript is continuously synced to browser `localStorage`.
-  - [ ] If the student accidentally refreshes or closes the browser tab, the full transcript reloads intact upon return.
-  - [ ] A "Clear / New Lecture" button allows wiping the current transcript (with a simple confirmation dialog to avoid accidental loss).
+  - [x] Student can open the app and start transcribing immediately with zero login or signup requirements.
+  - [x] Current lecture transcript is continuously synced to browser `localStorage`.
+  - [x] If the student accidentally refreshes or closes the browser tab, the full transcript reloads intact upon return.
+  - [x] A "Clear / New Lecture" button allows wiping the current transcript (with a simple confirmation dialog to avoid accidental loss).
 
 ### F9: Export & Note-Taking Tools
 - **Description:** Easy one-click tools for the student to save or copy the lecture text after class.
 - **Done when:**
-  - [ ] **"Copy All Text"** button copies the entire lecture transcript to the system clipboard with clear visual confirmation (e.g., "Copied!").
-  - [ ] **"Download (.txt)"** button downloads a formatted plain text file named with the current date/time (e.g., `Bayan-Lecture-2026-10-15.txt`).
+  - [x] **"Copy All Text"** button copies the entire lecture transcript to the system clipboard with clear visual confirmation (e.g., "Copied!").
+  - [x] **"Download (.txt)"** button downloads a formatted plain text file named with the current date/time (e.g., `Bayan-Lecture-2026-10-15.txt`).
 
 ---
 
