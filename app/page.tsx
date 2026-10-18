@@ -12,6 +12,11 @@ export default function Home() {
     timestamp: number;
   } | null>(null);
 
+  const [lastTranscript, setLastTranscript] = useState<string>("");
+  const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
+  const [transcribeError, setTranscribeError] = useState<string | null>(null);
+  const [transcriptCount, setTranscriptCount] = useState<number>(0);
+
   // F1: Microphone capture & real-time RMS volume analysis
   const {
     isCapturing,
@@ -39,13 +44,42 @@ export default function Home() {
     isSoundDetected,
     chunkDurationMs: 3500,
     silenceThreshold: 8,
-    onChunkReady: (_blob: Blob, info: ChunkInfo) => {
-      // Standalone audio chunk ready (F2 -> ready for F3 API dispatch)
+    onChunkReady: async (blob: Blob, info: ChunkInfo) => {
+      // Standalone audio chunk ready (F2)
       setLastEmittedChunk({
         size: info.size,
         mimeType: info.mimeType,
         timestamp: info.timestamp,
       });
+
+      // F3: Dispatch chunk to server route /api/transcribe
+      const formData = new FormData();
+      formData.append("audio", blob, "chunk.webm");
+
+      setIsTranscribing(true);
+      setTranscribeError(null);
+
+      try {
+        const res = await fetch("/api/transcribe", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || `HTTP ${res.status}: Transcription failed`);
+        }
+
+        const text = (data.text || "").trim();
+        setLastTranscript(text || "(No speech detected / Silence)");
+        setTranscriptCount((prev) => prev + 1);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Network/API error";
+        setTranscribeError(msg);
+      } finally {
+        setIsTranscribing(false);
+      }
     },
   });
 
@@ -288,6 +322,76 @@ export default function Home() {
                 <span>{(lastEmittedChunk.size / 1024).toFixed(1)} KB (Ready)</span>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* F3: Last Transcript Testing Box */}
+        <div className="w-full max-w-xl mx-auto rounded-2xl border-2 border-zinc-800 bg-zinc-950 p-4 md:p-6 shadow-xl space-y-3">
+          <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-extrabold text-[#FFE600]">F3</span>
+              <h3 className="text-sm font-bold text-white tracking-wide">
+                Server-Side Gemini Transcription
+              </h3>
+            </div>
+
+            <span
+              className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                isTranscribing
+                  ? "bg-[#FFE600]/15 text-[#FFE600] border-[#FFE600]/30 animate-pulse"
+                  : transcribeError
+                  ? "bg-red-950/80 text-red-300 border-red-700/60"
+                  : lastTranscript
+                  ? "bg-emerald-950/80 text-emerald-300 border-emerald-700/60"
+                  : "bg-zinc-900 text-zinc-500 border-zinc-800"
+              }`}
+            >
+              {isTranscribing
+                ? "Transcribing (Gemini)..."
+                : transcribeError
+                ? "API Error"
+                : lastTranscript
+                ? `Transcribed #${transcriptCount}`
+                : "Awaiting audio chunk"}
+            </span>
+          </div>
+
+          {/* Transcript Content Box */}
+          <div className="min-h-[100px] rounded-xl bg-black border border-zinc-800 p-4 flex flex-col justify-center">
+            {transcribeError ? (
+              <div className="space-y-1">
+                <p className="text-xs text-red-400 font-bold uppercase tracking-wider">
+                  Transcription Error
+                </p>
+                <p className="text-sm text-red-300 font-mono break-words">
+                  {transcribeError}
+                </p>
+              </div>
+            ) : lastTranscript ? (
+              <p
+                dir={/[\u0600-\u06FF]/.test(lastTranscript) ? "rtl" : "ltr"}
+                className={`text-lg sm:text-xl font-medium leading-relaxed ${
+                  /[\u0600-\u06FF]/.test(lastTranscript)
+                    ? "text-right font-serif"
+                    : "text-left"
+                } ${
+                  lastTranscript.startsWith("(")
+                    ? "text-zinc-500 italic text-base"
+                    : "text-white"
+                }`}
+              >
+                {lastTranscript}
+              </p>
+            ) : (
+              <p className="text-sm text-zinc-500 italic text-center">
+                Microphone on karen aur bolein. Har 3.5s chunk ka transcribed text yahan aayega.
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] text-zinc-400 font-mono">
+            <span>Model: gemini-3.8-flash</span>
+            <span>Route: POST /api/transcribe</span>
           </div>
         </div>
       </main>
